@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from selenium import webdriver
 from selenium.common import NoSuchElementException
 from selenium.webdriver.edge.options import Options
@@ -281,6 +282,7 @@ def save_configs():
     config.set("default", "xpath2", entry_xpath2.get())
     with open("config.ini", "w", encoding="utf-8") as f:
         config.write(f)
+    window.quit()
     window.destroy()
 
 # 初始化
