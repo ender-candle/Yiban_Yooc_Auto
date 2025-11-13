@@ -13,15 +13,7 @@ import json
 import os
 import re
 import time
-
-# 配置信息
-answer_path = r"answer1.json"
-system_zoom = 1.5
-verification_auto = True
-verification_position_x = 415
-verification_position_y = 676
-default_xpath1 = ''
-default_xpath2 = ''
+import configparser
 
 # 验证码处理
 def verification(raw_image, color):
@@ -95,10 +87,10 @@ def open_web():
 def start():
     global current_times
     # 打开题库
-    if not os.path.exists(answer_path):
-        with open(answer_path, 'w', encoding='utf-8') as f:
+    if not os.path.exists(entry_answer_path.get()):
+        with open(entry_answer_path.get(), 'w', encoding='utf-8') as f:
             json.dump({}, f, indent=4)
-    with open(answer_path, 'r', encoding='utf-8') as f:
+    with open(entry_answer_path.get(), 'r', encoding='utf-8') as f:
         answer_dic = json.load(f)
     while current_times < total_times:
         if not first_time.get():
@@ -110,7 +102,7 @@ def start():
         driver.find_element(By.XPATH, '//*[@id="root"]/div[1]/div[2]/main/article/div[3]/button').click()
         driver.find_element(By.XPATH, '//*[@id="root"]/div[1]/div[2]/main/article/div[3]/div/div/div[2]/button[2]').click()
         # 自动处理验证码
-        if verification_auto:
+        if auto_verify.get():
             time.sleep(1)
             # 获取验证码图片
             image_element = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'shumei_captcha_loaded_img_bg')))
@@ -237,7 +229,7 @@ def start():
                 answer_dic[question] = answer.split('：')[1].split('、')
             # 下一题
             driver.find_element(By.XPATH, '//*[@id="root"]/div[1]/div[2]/main/ul/li[3]/button').click()
-        with open(answer_path, 'w', encoding='utf-8') as f:
+        with open(entry_answer_path.get(), 'w', encoding='utf-8') as f:
             json.dump(answer_dic, f, ensure_ascii=False, indent=4)
         print(f"题库数量{len(answer_dic)}")
         # 返回
@@ -261,6 +253,21 @@ def cycle_remove():
         total_times -= 1
         label_cycle_times.config(text=f"{current_times}/{total_times}")
 
+# 保存配置
+def save_configs():
+    config.set("default", "system_zoom", str(system_zoom))
+    config.set("default", "verification_position_x", str(verification_position_x))
+    config.set("default", "verification_position_y", str(verification_position_y))
+    config.set("default", "answer_path", entry_answer_path.get())
+    config.set("default", "auto_login", str(auto_login.get()))
+    config.set("default", "auto_verify", str(auto_verify.get()))
+    config.set("default", "first_time", str(first_time.get()))
+    config.set("default", "xpath1", entry_xpath1.get())
+    config.set("default", "xpath2", entry_xpath2.get())
+    with open("config.ini", "w", encoding="utf-8") as f:
+        config.write(f)
+    window.destroy()
+
 # 初始化
 options = Options()
 options.add_argument('--disable-blink-features=AutomationControlled')
@@ -271,30 +278,56 @@ driver = webdriver.Edge(options=options)
 driver.implicitly_wait(10)
 current_times = 0
 total_times = 1
+system_zoom = 1.0
+verification_position_x = 0
+verification_position_y = 0
 
 # 用户窗口
 window = Tk()
 window.title("Yiban Yooc Auto")
 window.geometry("600x300")
 first_time = BooleanVar(window)
+auto_login = BooleanVar(window)
+auto_verify = BooleanVar(window)
 button_open_web = Button(window, text="打开网页", command=open_web)
-button_open_web.grid(column=0, row=0, columnspan=2)
-label_cycle_times = Label(font=('', 20))
-label_cycle_times.config(text=f"{current_times}/{total_times}")
-label_cycle_times.grid(column=0, row=1, columnspan=2, padx=200, pady=30)
-checkbutton_first_time = Checkbutton(window, text="首次启动", variable=first_time, onvalue=True, offvalue=False)
-checkbutton_first_time.grid(column=2, row=1)
+button_open_web.grid(column=0, row=0)
 button_cycle_add = Button(window, text="增加循环",state="disabled", command=cycle_add)
 button_cycle_add.grid(column=0, row=2)
 button_cycle_remove = Button(window, text="减少循环",state="disabled", command=cycle_remove)
 button_cycle_remove.grid(column=1, row=2)
 button_start = Button(window, text="开始", state="disabled", command=start)
 button_start.grid(column=2, row=2)
+label_cycle_times = Label(font=('', 20))
+label_cycle_times.config(text=f"{current_times}/{total_times}")
+label_cycle_times.grid(column=0, row=1, padx=60, pady=30)
+checkbutton_auto_login = Checkbutton(window, text="自动登录", variable=auto_login, onvalue=True, offvalue=False)
+checkbutton_auto_login.grid(column=1, row=0)
+checkbutton_auto_verify = Checkbutton(window, text="自动验证", variable=auto_verify, onvalue=True, offvalue=False)
+checkbutton_auto_verify.grid(column=1, row=1)
+checkbutton_first_time = Checkbutton(window, text="首次启动", variable=first_time, onvalue=True, offvalue=False)
+checkbutton_first_time.grid(column=2, row=1)
+entry_answer_path = Entry(window)
+entry_answer_path.grid(column=2, row=0)
 entry_xpath1 = Entry(window)
-entry_xpath1.insert(0, default_xpath1)
 entry_xpath1.grid(column=0, row=3, columnspan=3, pady=15, ipadx=190)
 entry_xpath2 = Entry(window)
-entry_xpath2.insert(0, default_xpath2)
 entry_xpath2.grid(column=0, row=4, columnspan=3, ipadx=190)
 
+# 配置文件
+config = configparser.ConfigParser()
+config.read('config.ini', encoding='utf-8')
+try:
+    system_zoom = config.getfloat('default', 'system_zoom')
+    verification_position_x = config.getint('default', 'verification_position_x')
+    verification_position_y = config.getint('default', 'verification_position_y')
+    entry_answer_path.insert(0, config.get('default', 'answer_path'))
+    auto_login.set(config.getboolean('default', 'auto_login'))
+    auto_verify.set(config.getboolean('default', 'auto_verify'))
+    first_time.set(config.getboolean('default', 'first_time'))
+    entry_xpath1.insert(0, config.get('default', 'xpath1'))
+    entry_xpath2.insert(0, config.get('default', 'xpath2'))
+except configparser.NoSectionError:
+    config.add_section('default')
+
+window.protocol("WM_DELETE_WINDOW", save_configs)
 window.mainloop()
