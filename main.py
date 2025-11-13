@@ -14,6 +14,7 @@ import os
 import re
 import time
 import configparser
+import threading
 
 # 验证码处理
 def verification(raw_image, color):
@@ -59,19 +60,27 @@ def is_verified():
 def open_web():
     button_open_web.config(state="disabled")
     driver.get('https://www.yooc.me/mobile/dashboard/my_group')
-    # 载入Cookies
-    if not os.path.exists('cookies.json'):
-        with open('cookies.json', 'w') as f:
-            json.dump({}, f, indent=4)
-    with open('cookies.json', 'r') as f:
-        cookies = json.load(f)
-    for cookie in cookies:
-        driver.add_cookie(cookie)
-    # 刷新
-    driver.get('https://www.yooc.me/mobile/dashboard/my_group')
-    # driver.refresh()
-    # 判断Cookies是否失效
-    if driver.current_url != 'https://www.yooc.me/mobile/dashboard/my_group':
+    # 判断自动登录
+    if auto_login.get():
+        # 载入Cookies
+        if not os.path.exists('cookies.json'):
+            with open('cookies.json', 'w') as f:
+                json.dump({}, f, indent=4)
+        with open('cookies.json', 'r') as f:
+            cookies = json.load(f)
+        for cookie in cookies:
+            driver.add_cookie(cookie)
+        # 刷新
+        driver.get('https://www.yooc.me/mobile/dashboard/my_group')
+        # driver.refresh()
+        # 判断Cookies是否失效
+        time.sleep(1)
+        if driver.current_url == 'https://www.yooc.me/mobile/dashboard/my_group':
+            print("自动登录成功")
+            button_cycle_add.config(state="normal")
+            button_cycle_remove.config(state="normal")
+            button_start.config(state="normal")
+            return
         # 等待人机验证
         input("Cookies失效，请重新登陆：登陆成功后任意回复")
         # 保存Cookies
@@ -79,12 +88,18 @@ def open_web():
         with open('cookies.json', 'w') as f:
             json.dump(cookies, f, indent=4)
         print("Cookies已更新")
+    else:
+        input("等待手动登录：任意输入以继续")
     button_cycle_add.config(state="normal")
     button_cycle_remove.config(state="normal")
     button_start.config(state="normal")
 
-# 开始
 def start():
+    button_start.config(state="disabled")
+    threading.Thread(target=start_).start()
+
+# 开始
+def start_():
     global current_times
     # 打开题库
     if not os.path.exists(entry_answer_path.get()):
@@ -231,14 +246,14 @@ def start():
             driver.find_element(By.XPATH, '//*[@id="root"]/div[1]/div[2]/main/ul/li[3]/button').click()
         with open(entry_answer_path.get(), 'w', encoding='utf-8') as f:
             json.dump(answer_dic, f, ensure_ascii=False, indent=4)
-        print(f"题库数量{len(answer_dic)}")
+        print(f"题库数量{len(answer_dic)}\n")
         # 返回
         driver.find_element(By.XPATH, '//*[@id="root"]/div[1]/div[1]/div[1]/span').click()
         if first_time.get():
             break
         current_times += 1
-        print(f"进度{current_times}/{total_times}\n")
-    label_cycle_times.config(text=f"{current_times}/{total_times}")
+        label_cycle_times.config(text=f"{current_times}/{total_times}")
+    button_start.config(state="normal")
 
 # 添加循环
 def cycle_add():
