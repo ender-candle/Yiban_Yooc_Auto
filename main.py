@@ -109,11 +109,20 @@ def start_():
     with open(entry_answer_path.get(), 'r', encoding='utf-8') as f:
         answer_dic = json.load(f)
     while current_times < total_times:
-        if not first_time.get():
-            driver.find_element(By.XPATH, entry_xpath1.get()).click()
-            driver.find_element(By.XPATH, entry_xpath2.get()).click()
-        # 获取题目数量
-        question_number = int(re.findall(r'\d+', driver.find_element(By.XPATH,'//*[@id="root"]/div[1]/div[2]/main/article/div[1]/div[2]/div').text)[0])
+        try:
+            if not first_time.get():
+                driver.find_element(By.XPATH, entry_xpath1.get()).click()
+                driver.find_element(By.XPATH, entry_xpath2.get()).click()
+        except Exception as e:
+            print(e)
+            button_start.config(state="normal")
+            return        # 获取题目数量
+        try:
+            question_number = int(re.findall(r'\d+', driver.find_element(By.XPATH,'//*[@id="root"]/div[1]/div[2]/main/article/div[1]/div[2]/div').text)[0])
+        except NoSuchElementException as e:
+            print(e)
+            button_start.config(state="normal")
+            return
         # 进入考试------------------------------------------------------------------------------------------------------------
         driver.find_element(By.XPATH, '//*[@id="root"]/div[1]/div[2]/main/article/div[3]/button').click()
         driver.find_element(By.XPATH, '//*[@id="root"]/div[1]/div[2]/main/article/div[3]/div/div/div[2]/button[2]').click()
